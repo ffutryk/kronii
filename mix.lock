@@ -1,0 +1,3 @@
+%{
+  "ex_ulid": {:hex, :ex_ulid, "0.1.0", "e6e717c57344f6e500d0190ccb4edc862b985a3680f15834af992ec065d4dcff", [:mix], [], "hexpm", "a2befd477aebc4639563de7e233e175cacf8a8f42c8f6778c88d60c13bf20860"},
+}
