@@ -48,7 +48,7 @@ defmodule Kronii.Sessions.Session do
   def needs_summarization?(%__MODULE__{} = session),
     do: session.message_count >= session.config.context_window
 
-  @spec patch_config(t(), keyword()) :: t()
+  @spec patch_config(t(), keyword() | map()) :: t()
   def patch_config(%__MODULE__{} = session, updates) do
     %__MODULE__{session | config: Config.patch(session.config, updates)}
   end

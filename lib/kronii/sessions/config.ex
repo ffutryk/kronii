@@ -1,32 +1,46 @@
 defmodule Kronii.Sessions.Config do
+  alias Kronii.LLM.Config, as: LLMConfig
+
   defstruct system_prompt: nil,
             context_window: 20,
-            model: Application.compile_env!(:kronii, :default_model),
-            temperature: 1.0,
-            max_tokens: nil
+            llm_config: %LLMConfig{}
 
-  @valid_keys [:system_prompt, :context_window, :model, :temperature, :max_tokens]
+  @valid_keys [:system_prompt, :context_window, :llm_config]
 
   @type t :: %__MODULE__{
           system_prompt: String.t() | nil,
           context_window: pos_integer(),
-          model: String.t(),
-          temperature: float(),
-          max_tokens: pos_integer() | nil
+          llm_config: LLMConfig.t()
         }
 
   def new(attrs \\ %{}) do
-    attrs
-    |> prepare_attrs()
-    |> then(&struct(__MODULE__, &1))
+    do_update(%__MODULE__{}, %LLMConfig{}, attrs)
   end
 
-  @spec patch(t(), keyword()) :: t()
-  def patch(%__MODULE__{} = config, updates) do
-    updates
-    |> prepare_attrs
-    |> then(&struct(config, &1))
+  def patch(config, updates) do
+    do_update(config, config.llm_config, updates)
   end
+
+  defp do_update(base_config, base_llm, attrs) do
+    attrs = Enum.into(attrs, %{})
+    {llm_attrs, session_attrs} = Map.split(attrs, [:model, :temperature, :max_tokens])
+
+    llm_config = update_llm(base_llm, llm_attrs)
+
+    session_attrs
+    |> Map.put(:llm_config, llm_config)
+    |> prepare_attrs()
+    |> then(&struct(base_config, &1))
+  end
+
+  defp update_llm(base_llm, llm_attrs) when map_size(llm_attrs) == 0,
+    do: base_llm
+
+  defp update_llm(%LLMConfig{} = _base, llm_attrs) when map_size(llm_attrs) > 0,
+    do: LLMConfig.new(llm_attrs)
+
+  defp update_llm(base_llm, llm_attrs),
+    do: LLMConfig.patch(base_llm, llm_attrs)
 
   defp prepare_attrs(attrs) do
     attrs
@@ -48,17 +62,10 @@ defmodule Kronii.Sessions.Config do
        when not (is_integer(value) and value > 0),
        do: raise(ArgumentError, ":context_window must be a positive integer")
 
-  defp validate_field({:model, value})
-       when not is_binary(value),
-       do: raise(ArgumentError, ":model must be a string")
+  defp validate_field({:llm_config, %LLMConfig{}}), do: :ok
 
-  defp validate_field({:temperature, value})
-       when not is_number(value) or value < 0 or value > 2,
-       do: raise(ArgumentError, ":temperature must be a number between 0 and 2")
-
-  defp validate_field({:max_tokens, value})
-       when not (is_integer(value) and value > 0) and not is_nil(value),
-       do: raise(ArgumentError, ":max_tokens must be a positive integer or nil")
+  defp validate_field({:llm_config, _}),
+    do: raise(ArgumentError, ":llm_config must be a %Kronii.LLM.Config{}")
 
   defp validate_field(_), do: :ok
 end
