@@ -4,7 +4,7 @@ defmodule Kronii.Sessions.Session do
 
   defstruct [
     :id,
-    :user_id,
+    :username,
     :source,
     :config,
     message_history: [],
@@ -14,7 +14,7 @@ defmodule Kronii.Sessions.Session do
 
   @type t :: %__MODULE__{
           id: String.t(),
-          user_id: String.t(),
+          username: String.t(),
           source: String.t(),
           message_history: [Message.t()],
           message_count: non_neg_integer(),
@@ -24,10 +24,10 @@ defmodule Kronii.Sessions.Session do
 
   @spec new(String.t(), String.t()) :: t()
   @spec new(String.t(), String.t(), Config.t()) :: t()
-  def new(user_id, source, config \\ Kronii.Sessions.Config.new()) do
+  def new(username, source, config \\ Kronii.Sessions.Config.new()) do
     session = %__MODULE__{
       id: ExULID.ULID.generate(),
-      user_id: user_id,
+      username: username,
       source: source,
       config: config
     }
@@ -79,9 +79,9 @@ defmodule Kronii.Sessions.Session do
        when not is_binary(value),
        do: raise(ArgumentError, ":id must be a string")
 
-  defp validate_field({:user_id, value})
+  defp validate_field({:username, value})
        when not is_binary(value),
-       do: raise(ArgumentError, ":user_id must be a string")
+       do: raise(ArgumentError, ":username must be a string")
 
   defp validate_field({:source, value})
        when not is_binary(value),
