@@ -22,7 +22,8 @@ defmodule Kronii.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_ulid, "~> 0.1.0"}
+      {:ex_ulid, "~> 0.1.0"},
+      {:req, "~> 0.5.0"}
     ]
   end
 end
