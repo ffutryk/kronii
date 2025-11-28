@@ -96,12 +96,7 @@ defmodule Kronii.LLM.OpenRouter do
   end
 
   defp handle_stream({:data, chunk}, {req, res}, pid) when is_binary(chunk) do
-    if cancelled?() do
-      send(pid, {:cancelled})
-      {:halt, {req, res}}
-    else
-      process_chunk(chunk, req, res, pid)
-    end
+    process_chunk(chunk, req, res, pid)
   end
 
   defp handle_stream(_other, state, _pid), do: {:cont, state}
@@ -144,14 +139,6 @@ defmodule Kronii.LLM.OpenRouter do
   end
 
   defp extract_content(_), do: nil
-
-  defp cancelled? do
-    receive do
-      :cancel -> true
-    after
-      0 -> false
-    end
-  end
 
   defp on_success_non_stream(%{body: body}) do
     case handle_response(body) do
