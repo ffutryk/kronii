@@ -4,7 +4,13 @@ defmodule Kronii.LLM.OpenRouter do
 
   @api_url "https://openrouter.ai/api/v1/chat/completions"
 
-  def generate(messages, config \\ Config.new(), pid, stream? \\ false) when is_list(messages) do
+  def generate(messages, config \\ Config.new(), pid \\ nil, stream? \\ false)
+
+  def generate(_messages, _config, nil, true),
+    do: raise(ArgumentError, ":pid cannot be nil when :stream? is true")
+
+  def generate(messages, config, pid, stream?)
+      when is_list(messages) do
     mapped_messages = map_messages(messages)
 
     client =
@@ -13,7 +19,11 @@ defmodule Kronii.LLM.OpenRouter do
       |> maybe_add_stream_handler(stream?, pid)
 
     result = do_request(client, on_success_handler(stream?))
-    send(pid, result)
+
+    case pid do
+      nil -> result
+      _ when is_pid(pid) -> send(pid, result)
+    end
   end
 
   defp build_req_client do
