@@ -14,7 +14,7 @@ defmodule Kronii.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
+      extra_applications: [:logger, :plug_cowboy],
       mod: {Kronii.Application, []}
     ]
   end
@@ -23,7 +23,8 @@ defmodule Kronii.MixProject do
   defp deps do
     [
       {:ex_ulid, "~> 0.1.0"},
-      {:req, "~> 0.5.0"}
+      {:req, "~> 0.5.0"},
+      {:plug_cowboy, "~> 2.0"}
     ]
   end
 end
