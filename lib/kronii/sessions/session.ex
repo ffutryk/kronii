@@ -8,7 +8,7 @@ defmodule Kronii.Sessions.Session do
     :config,
     message_history: [],
     message_count: 0,
-    summary: nil
+    summary: "N/A"
   ]
 
   @type t :: %__MODULE__{
