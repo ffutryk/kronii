@@ -8,7 +8,7 @@ defmodule Kronii.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {Registry, keys: :unique, name: Kronii.Sessions.Supervisor.registry_name()},
+      {Registry, keys: :unique, name: Kronii.Sessions.Registry},
       {Kronii.Sessions.Supervisor, []}
     ]
 
