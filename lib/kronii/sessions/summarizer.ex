@@ -54,7 +54,7 @@ defmodule Kronii.Sessions.Summarizer do
 
     last_message = List.last(message_history)
 
-    result = OpenRouter.generate(messages, config, pid)
+    result = OpenRouter.generate(messages, config)
     handle_generation_result(result, pid, last_message.timestamp)
   end
 
