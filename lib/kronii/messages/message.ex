@@ -40,6 +40,9 @@ defmodule Kronii.Messages.Message do
   @spec user(String.t(), String.t()) :: t()
   def user(name, content), do: new(:user, content, name)
 
+  @spec user(String.t()) :: t()
+  def user(content), do: new(:user, content, nil)
+
   @spec assistant(String.t() | map()) :: t()
   def assistant(content), do: new(:assistant, content)
 
