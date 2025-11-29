@@ -3,8 +3,8 @@ defmodule Kronii do
   alias Kronii.Sessions.Runtime
   alias Kronii.Messages.Message
 
-  def create_session(source) do
-    Supervisor.start_session(source)
+  def create_session(source, initial_config_updates \\ %{}) do
+    Kronii.Sessions.Supervisor.start_session(source, initial_config_updates)
   end
 
   def close_session(session_id), do: Supervisor.stop_session(session_id)

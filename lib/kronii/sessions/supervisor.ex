@@ -1,7 +1,7 @@
 defmodule Kronii.Sessions.Supervisor do
   use DynamicSupervisor
 
-  alias Kronii.Sessions.Session
+  alias Kronii.Sessions.{Session, Config}
   alias Kronii.Sessions.Runtime
 
   @name __MODULE__
@@ -15,8 +15,10 @@ defmodule Kronii.Sessions.Supervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  def start_session(source) do
-    session = Session.new(source)
+  def start_session(source, user_updates \\ %{}) do
+    default_config = Config.new()
+    final_config = Config.patch(default_config, user_updates)
+    session = Session.new(source, final_config)
 
     spec = build_child_spec(session)
 
