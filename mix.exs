@@ -24,7 +24,8 @@ defmodule Kronii.MixProject do
     [
       {:ex_ulid, "~> 0.1.0"},
       {:req, "~> 0.5.0"},
-      {:plug_cowboy, "~> 2.0"}
+      {:plug_cowboy, "~> 2.0"},
+      {:jason, "~> 1.4"}
     ]
   end
 end
