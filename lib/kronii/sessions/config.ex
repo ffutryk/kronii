@@ -1,13 +1,15 @@
 defmodule Kronii.Sessions.Config do
   alias Kronii.LLM.Config, as: LLMConfig
 
-  defstruct system_prompt: nil,
+  defstruct assistant_name: "Assistant",
+            system_prompt: nil,
             context_window: 20,
             llm_config: %LLMConfig{}
 
-  @valid_keys [:system_prompt, :context_window, :llm_config]
+  @valid_keys [:assistant_name, :system_prompt, :context_window, :llm_config]
 
   @type t :: %__MODULE__{
+          assistant_name: String.t(),
           system_prompt: String.t() | nil,
           context_window: pos_integer(),
           llm_config: LLMConfig.t()
@@ -53,6 +55,10 @@ defmodule Kronii.Sessions.Config do
     Enum.each(config, &validate_field/1)
     config
   end
+
+  defp validate_field({:assistant_name, value})
+       when not is_binary(value),
+       do: raise(ArgumentError, ":assistant_name must be a string")
 
   defp validate_field({:system_prompt, value})
        when not is_binary(value) and not is_nil(value),
