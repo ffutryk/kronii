@@ -41,7 +41,15 @@ defmodule Kronii.Sessions.Summarizer do
       conversation_transcript(message_history, assistant_name)
       |> user_message(previous_summary)
 
-    config = (config || Config.new()) |> Config.patch(max_tokens: @max_tokens)
+    config =
+      case config || Config.new() do
+        %Config{max_tokens: nil} = cfg ->
+          Config.patch(cfg, max_tokens: @max_tokens)
+
+        cfg ->
+          cfg
+      end
+
     messages = [system_message(config.max_tokens), message]
 
     last_message = List.last(message_history)
