@@ -1,18 +1,5 @@
 defmodule Kronii do
-  @moduledoc """
-  Documentation for `Kronii`.
-  """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Kronii.hello()
-      :world
-
-  """
-  def hello do
-    :world
+  def notify_client(session_id, message) do
+    IO.inspect({session_id, message}, label: "notify_client")
   end
 end
