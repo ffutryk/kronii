@@ -9,7 +9,8 @@ defmodule Kronii.Application do
   def start(_type, _args) do
     children = [
       {Registry, keys: :unique, name: Kronii.Sessions.Registry},
-      {Kronii.Sessions.Supervisor, []}
+      {Kronii.Sessions.Supervisor, []},
+      {KroniiWeb.Endpoint, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
