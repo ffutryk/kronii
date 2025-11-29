@@ -8,8 +8,8 @@ defmodule Kronii.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Starts a worker by calling: Kronii.Worker.start_link(arg)
-      # {Kronii.Worker, arg}
+      {Registry, keys: :unique, name: Kronii.Sessions.Supervisor.registry_name()},
+      {Kronii.Sessions.Supervisor, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
