@@ -214,7 +214,31 @@ defmodule Kronii.Sessions.Runtime do
     put_summarization_task(data, task_pid)
   end
 
-  defp notify(%{session: session}, msg), do: Kronii.notify_client(session.id, msg)
+  defp notify(%{session: session}, msg), do: Kronii.notify_client(session.id, event_to_map(msg))
+
+  defp event_to_map({:generation_start, gen_id}) do
+    %{type: "generation_start", gen_id: gen_id}
+  end
+
+  defp event_to_map({:generation_chunk, gen_id, chunk}) do
+    %{type: "generation_chunk", gen_id: gen_id, chunk: chunk}
+  end
+
+  defp event_to_map({:generation_complete, gen_id}) do
+    %{type: "generation_complete", gen_id: gen_id}
+  end
+
+  defp event_to_map({:generation_cancelled, gen_id}) do
+    %{type: "generation_cancelled", gen_id: gen_id}
+  end
+
+  defp event_to_map({:generation_error, gen_id, reason}) do
+    %{type: "generation_error", gen_id: gen_id, reason: reason}
+  end
+
+  defp event_to_map(other) do
+    %{type: "unknown", payload: other}
+  end
 
   defp stop_summarization_task(data), do: put_task(data, :summarization, nil)
 

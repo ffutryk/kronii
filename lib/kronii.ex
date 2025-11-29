@@ -32,7 +32,11 @@ defmodule Kronii do
   end
 
   def notify_client(session_id, message) do
-    IO.inspect({session_id, message}, label: "notify_client")
+    Registry.dispatch(KroniiWeb.Sessions.Socket, session_id, fn entries ->
+      for {pid, _} <- entries do
+        send(pid, {:notify, Jason.encode!(message)})
+      end
+    end)
   end
 
   def with_session(session_id, fun) when is_binary(session_id) and is_function(fun, 1) do

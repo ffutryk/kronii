@@ -10,7 +10,8 @@ defmodule Kronii.Application do
     children = [
       {Registry, keys: :unique, name: Kronii.Sessions.Registry},
       {Kronii.Sessions.Supervisor, []},
-      {KroniiWeb.Endpoint, []}
+      {KroniiWeb.Endpoint, []},
+      {Registry, keys: :unique, name: KroniiWeb.Sessions.Socket}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

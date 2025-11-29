@@ -14,6 +14,17 @@ defmodule KroniiWeb.Http.Router do
   plug(:match)
   plug(:dispatch)
 
+  get "/sessions/:session_id/ws" do
+    conn = Plug.Conn.fetch_query_params(conn)
+    session_id = conn.params["session_id"]
+
+    conn
+    |> Plug.Conn.upgrade_adapter(
+      :websocket,
+      {KroniiWeb.Websocket.Handler, %{session_id: session_id}, %{}}
+    )
+  end
+
   post "/sessions" do
     SessionController.create(conn)
   end
