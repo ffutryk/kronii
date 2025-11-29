@@ -53,7 +53,7 @@ defmodule Kronii.Sessions.Session do
   @spec apply_summary(t(), String.t(), DateTime.t()) :: t()
   def apply_summary(%__MODULE__{} = session, summary, %DateTime{} = timestamp) do
     filtered_history =
-      Enum.take_while(session.message_history, &(not DateTime.before?(&1.timestamp, timestamp)))
+      Enum.take_while(session.message_history, &DateTime.after?(&1.timestamp, timestamp))
 
     updated_session = %__MODULE__{
       session
