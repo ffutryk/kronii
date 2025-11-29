@@ -150,6 +150,15 @@ defmodule Kronii.Sessions.Runtime do
   end
 
   @impl :gen_statem
+  def handle_event(:info, {:error, reason}, state, data) when state in [:thinking, :streaming] do
+    notify(data, {:generation_error, data.gen_id, reason})
+
+    data = data |> stop_generation_task() |> clear_gen_id()
+
+    {:next_state, :active, data}
+  end
+
+  @impl :gen_statem
   def handle_event({:call, from}, :close, _state, data) do
     if is_pid(data.tasks.generation), do: Process.exit(data.tasks.generation, :shutdown)
     if is_pid(data.tasks.summarization), do: Process.exit(data.tasks.summarization, :shutdown)
