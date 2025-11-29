@@ -15,10 +15,10 @@ defmodule Kronii.Sessions.Supervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  def start_session(source, websocket) do
+  def start_session(source) do
     session = Session.new(source)
 
-    spec = build_child_spec(session, websocket)
+    spec = build_child_spec(session)
 
     case DynamicSupervisor.start_child(@name, spec) do
       {:ok, pid} -> {:ok, pid, session}
@@ -39,7 +39,7 @@ defmodule Kronii.Sessions.Supervisor do
     end
   end
 
-  defp build_child_spec(session, websocket) do
+  defp build_child_spec(session) do
     %{
       id: {:session, session.id},
       start: {
@@ -48,7 +48,6 @@ defmodule Kronii.Sessions.Supervisor do
         [
           [
             session: session,
-            websocket: websocket,
             name: via_tuple(session)
           ]
         ]

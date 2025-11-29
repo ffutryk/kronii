@@ -10,9 +10,8 @@ defmodule Kronii.Sessions.Runtime do
   def start_link(opts) do
     name = Keyword.fetch!(opts, :name)
     session = Keyword.fetch!(opts, :session)
-    websocket = Keyword.fetch!(opts, :websocket)
 
-    data = %{session: session, websocket: websocket}
+    data = %{session: session}
 
     :gen_statem.start_link(name, __MODULE__, data, [])
   end
@@ -32,12 +31,11 @@ defmodule Kronii.Sessions.Runtime do
   def callback_mode(), do: :handle_event_function
 
   @impl :gen_statem
-  def init(%{session: session, websocket: websocket}) do
+  def init(%{session: session}) do
     Process.flag(:trap_exit, true)
 
     data = %{
       session: session,
-      websocket: websocket,
       tasks: %{
         generation: nil,
         summarization: nil
@@ -51,7 +49,7 @@ defmodule Kronii.Sessions.Runtime do
   def handle_event(:info, {:EXIT, pid, reason}, _state, data) do
     cond do
       pid == data.tasks.generation and reason not in [:normal, :shutdown] ->
-        notify_socket(data, {:generation_error, data.gen_id, reason})
+        notify(data, {:generation_error, data.gen_id, reason})
 
         {:next_state, :active, stop_generation_task(data)}
 
@@ -82,14 +80,14 @@ defmodule Kronii.Sessions.Runtime do
       |> put_gen_id(gen_id)
       |> start_generation_task()
 
-    notify_socket(data, {:generation_start, gen_id})
+    notify(data, {:generation_start, gen_id})
 
     {:next_state, :thinking, data}
   end
 
   @impl :gen_statem
   def handle_event(:info, {:chunk, chunk}, state, data) when state in [:thinking, :streaming] do
-    notify_socket(data, {:generation_chunk, data.gen_id, chunk})
+    notify(data, {:generation_chunk, data.gen_id, chunk})
 
     case state do
       :thinking -> {:next_state, :streaming, data}
@@ -109,7 +107,7 @@ defmodule Kronii.Sessions.Runtime do
       |> clear_gen_id()
       |> maybe_summarize()
 
-    notify_socket(data, {:generation_complete, gen_id})
+    notify(data, {:generation_complete, gen_id})
 
     {:next_state, :active, data}
   end
@@ -125,7 +123,7 @@ defmodule Kronii.Sessions.Runtime do
     gen_id = data.gen_id
     data = data |> stop_generation_task() |> clear_gen_id()
 
-    notify_socket(data, {:generation_cancelled, gen_id})
+    notify(data, {:generation_cancelled, gen_id})
 
     {:next_state, :active, data}
   end
@@ -207,9 +205,7 @@ defmodule Kronii.Sessions.Runtime do
     put_summarization_task(data, task_pid)
   end
 
-  # Change for proper notification later
-  defp notify_socket(%{websocket: socket_pid} = _data, msg),
-    do: IO.inspect({socket_pid, msg}, label: "notify_socket")
+  defp notify(%{session: session}, msg), do: Kronii.notify_client(session.id, msg)
 
   defp stop_summarization_task(data), do: put_task(data, :summarization, nil)
 
