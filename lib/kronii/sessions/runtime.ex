@@ -240,10 +240,6 @@ defmodule Kronii.Sessions.Runtime do
     %{type: "generation_error", gen_id: gen_id, reason: reason}
   end
 
-  defp event_to_map(other) do
-    %{type: "unknown", payload: other}
-  end
-
   defp stop_summarization_task(data), do: put_task(data, :summarization, nil)
 
   defp put_summarization_task(data, task_pid), do: put_task(data, :summarization, task_pid)
