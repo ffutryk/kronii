@@ -1,4 +1,6 @@
-defmodule Kronii.LLM.OpenRouter do
+defmodule Kronii.LLM.Adapters.OpenRouter do
+  @behaviour Kronii.LLM.Adapter
+
   alias Kronii.LLM.Config
   alias Kronii.Messages.Message
 

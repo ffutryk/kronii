@@ -1,7 +1,7 @@
 defmodule Kronii.Sessions.Runtime do
   @behaviour :gen_statem
 
-  alias Kronii.LLM.OpenRouter
+  alias Kronii.LLM.Client
   alias Kronii.Sessions.{Session, Summarizer}
   alias Kronii.Messages.Message
 
@@ -180,7 +180,7 @@ defmodule Kronii.Sessions.Runtime do
 
     {:ok, task_pid} =
       Task.start_link(fn ->
-        OpenRouter.generate(messages,
+        Client.generate(messages,
           config: session.config.llm_config,
           pid: server_pid,
           stream?: true

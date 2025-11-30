@@ -1,6 +1,6 @@
 defmodule Kronii.Sessions.Summarizer do
   alias Kronii.Messages.Message
-  alias Kronii.LLM.OpenRouter
+  alias Kronii.LLM.Client
   alias Kronii.LLM.Config
 
   @max_tokens 550
@@ -54,7 +54,7 @@ defmodule Kronii.Sessions.Summarizer do
 
     last_message = List.last(message_history)
 
-    result = OpenRouter.generate(messages, config: config)
+    result = Client.generate(messages, config: config)
     handle_generation_result(result, pid, last_message.timestamp)
   end
 

@@ -1,5 +1,5 @@
 defmodule Kronii.LLM.Config do
-  defstruct model: Application.compile_env!(:kronii, :default_model),
+  defstruct model: nil,
             temperature: 1.0,
             max_tokens: nil
 
@@ -14,13 +14,16 @@ defmodule Kronii.LLM.Config do
   def new(attrs \\ %{}) do
     attrs
     |> prepare_attrs()
+    |> drop_nil_values()
+    |> maybe_put_default_model()
     |> then(&struct(__MODULE__, &1))
   end
 
   @spec patch(t(), keyword() | map()) :: t()
   def patch(%__MODULE__{} = config, updates) do
     updates
-    |> prepare_attrs
+    |> prepare_attrs()
+    |> drop_nil_values()
     |> then(&struct(config, &1))
   end
 
@@ -34,6 +37,15 @@ defmodule Kronii.LLM.Config do
   defp validate_config(config) do
     Enum.each(config, &validate_field/1)
     config
+  end
+
+  defp maybe_put_default_model(attrs) do
+    Map.put_new(attrs, :model, Application.get_env(:kronii, :model))
+  end
+
+  defp drop_nil_values(attrs) do
+    Enum.reject(attrs, fn {_k, v} -> is_nil(v) end)
+    |> Enum.into(%{})
   end
 
   defp validate_field({:model, value})

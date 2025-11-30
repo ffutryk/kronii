@@ -16,7 +16,7 @@ defmodule Kronii.Sessions.Config do
         }
 
   def new(attrs \\ %{}) do
-    do_update(%__MODULE__{}, %LLMConfig{}, attrs)
+    do_update(%__MODULE__{}, LLMConfig.new(), attrs)
   end
 
   def patch(config, updates) do
