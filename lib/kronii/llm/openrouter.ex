@@ -71,57 +71,68 @@ defmodule Kronii.LLM.OpenRouter do
 
   defp on_success_stream(res) do
     content =
-      Req.Response.get_private(res, :accumulated_chunks, [])
+      Req.Response.get_private(res, :chunks, [])
       |> Enum.reverse()
       |> IO.iodata_to_binary()
 
     {:done, Message.assistant(content)}
   end
 
-  defp handle_stream({:data, chunk}, {req, res}, pid) when is_binary(chunk) do
-    process_chunk(chunk, req, res, pid)
-  end
+  defp handle_stream({:data, chunk}, {req, res}, pid)
+       when is_binary(chunk),
+       do: process_dataline(chunk, req, res, pid)
 
   defp handle_stream(_other, state, _pid), do: {:cont, state}
 
-  defp process_chunk(chunk, req, res, pid) do
-    contents =
-      chunk
-      |> parse_chunk()
-      |> Enum.map(&extract_content/1)
-      |> Enum.reject(&is_nil/1)
+  defp process_dataline(dataline, req, res, pid) do
+    {req, res} =
+      dataline
+      |> parse_dataline()
+      |> Enum.map(&extract_fields/1)
+      |> Enum.reject(&empty_chunk?/1)
+      |> Enum.reduce({req, res}, fn fields, {req_acc, res_acc} ->
+        {:cont, {req_next, res_next}} = process_chunk(fields, req_acc, res_acc, pid)
+        {req_next, res_next}
+      end)
 
-    if contents == [] do
-      {:cont, {req, res}}
-    else
-      Enum.each(contents, &send(pid, {:chunk, &1}))
-
-      acc = Req.Response.get_private(res, :accumulated_chunks, [])
-      updated_res = Req.Response.put_private(res, :accumulated_chunks, [contents | acc])
-
-      {:cont, {req, updated_res}}
-    end
+    {:cont, {req, res}}
   end
 
-  defp parse_chunk(chunk) when is_binary(chunk) do
-    for line <- String.split(chunk, "\n", trim: true),
-        String.starts_with?(line, "data: "),
-        line != "data: [DONE]" do
-      String.replace_prefix(line, "data: ", "")
-    end
+  defp parse_dataline(dataline) when is_binary(dataline) do
+    dataline
+    |> String.split("\n", trim: true)
+    |> Enum.filter(&String.starts_with?(&1, "data: "))
+    |> Enum.reject(&(&1 == "data: [DONE]"))
+    |> Enum.map(&String.replace_prefix(&1, "data: ", ""))
   end
 
-  defp extract_content(json) when is_binary(json) do
-    with {:ok, decoded} <- Jason.decode(json),
-         content when is_binary(content) and content != "" <-
-           get_in(decoded, ["choices", Access.at(0), "delta", "content"]) do
-      content
+  defp extract_fields(json) when is_binary(json) do
+    with {:ok, decoded} <- Jason.decode(json) do
+      get_in(decoded, ["choices", Access.at(0)])
+      |> do_extract_fields()
     else
       _ -> nil
     end
   end
 
-  defp extract_content(_), do: nil
+  defp do_extract_fields(choice) do
+    delta = Map.get(choice, "delta", %{})
+
+    %{
+      content: Map.get(delta, "content"),
+      tool_calls: Map.get(delta, "tool_calls"),
+      finish_reason: Map.get(choice, "finish_reason")
+    }
+  end
+
+  defp process_chunk(%{content: content} = _fields, req, res, pid) do
+    send(pid, {:chunk, content})
+
+    acc = Req.Response.get_private(res, :chunks, [])
+    res = Req.Response.put_private(res, :chunks, [content | acc])
+
+    {:cont, {req, res}}
+  end
 
   defp on_success_non_stream(%{body: body}) do
     case handle_response(body) do
@@ -136,6 +147,9 @@ defmodule Kronii.LLM.OpenRouter do
   end
 
   defp handle_response(other), do: {:error, {:unexpected_response, other}}
+
+  defp empty_chunk?(%{content: content, tool_calls: tool_calls}),
+    do: is_nil(content) and is_nil(tool_calls)
 
   defp maybe_enable_stream(client, true, pid),
     do: Req.merge(client, into: &handle_stream(&1, &2, pid))
