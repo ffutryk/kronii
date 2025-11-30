@@ -16,12 +16,7 @@ defmodule Kronii.LLM.OpenRouter do
     if is_nil(pid) and stream?,
       do: raise(ArgumentError, ":pid cannot be nil when :stream? is true")
 
-    mapped_messages = map_messages(messages)
-
-    client =
-      build_req_client()
-      |> Req.merge(json: build_request_body(mapped_messages, config, stream?))
-      |> maybe_add_stream_handler(stream?, pid)
+    client = req_client(messages, config, stream?) |> maybe_enable_stream(stream?, pid)
 
     result = do_request(client, on_success_handler(stream?))
 
@@ -31,28 +26,22 @@ defmodule Kronii.LLM.OpenRouter do
     end
   end
 
-  defp build_req_client do
+  defp req_client(messages, config, stream?) do
+    messages = map_messages(messages)
+
     Req.new(
       url: @api_url,
       method: :post,
-      auth: {:bearer, get_api_key()}
+      auth: {:bearer, get_api_key()},
+      json: %{
+        stream: stream?,
+        messages: messages,
+        model: config.model,
+        max_tokens: config.max_tokens || nil,
+        temperature: config.temperature
+      }
     )
   end
-
-  defp build_request_body(messages, %Config{} = config, stream?) do
-    %{
-      model: config.model,
-      messages: messages,
-      temperature: config.temperature
-    }
-    |> maybe_put(:max_tokens, config.max_tokens)
-    |> maybe_put_stream(stream?)
-  end
-
-  defp maybe_add_stream_handler(client, true, pid),
-    do: Req.merge(client, into: &handle_stream(&1, &2, pid))
-
-  defp maybe_add_stream_handler(client, false, _pid), do: client
 
   defp map_messages(messages) when is_list(messages), do: Enum.map(messages, &map_message/1)
 
@@ -67,8 +56,6 @@ defmodule Kronii.LLM.OpenRouter do
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
   end
-
-  defp get_api_key, do: Application.fetch_env!(:kronii, :openrouter_key)
 
   defp do_request(client, on_success) when is_function(on_success, 1) do
     case Req.post(client) do
@@ -154,9 +141,10 @@ defmodule Kronii.LLM.OpenRouter do
 
   defp handle_response(other), do: {:error, {:unexpected_response, other}}
 
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+  defp maybe_enable_stream(client, true, pid),
+    do: Req.merge(client, into: &handle_stream(&1, &2, pid))
 
-  defp maybe_put_stream(map, true), do: Map.put(map, :stream, true)
-  defp maybe_put_stream(map, false), do: map
+  defp maybe_enable_stream(client, false, _pid), do: client
+
+  defp get_api_key, do: Application.fetch_env!(:kronii, :openrouter_key)
 end
