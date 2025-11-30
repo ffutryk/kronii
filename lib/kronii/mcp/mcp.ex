@@ -1,8 +1,6 @@
 defmodule Kronii.MCP do
   use Supervisor
 
-  alias Anubis.MCP.{Response, Error}
-
   @client Kronii.MCP.Client
 
   def start_link(init_arg) do

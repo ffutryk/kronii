@@ -2,16 +2,10 @@ defmodule KroniiWeb.Websocket.Handler do
   @behaviour :cowboy_websocket
 
   @impl true
-  def init(req, _opts) do
-    session_id = :cowboy_req.binding(:session_id, req)
+  def init(_req, opts) do
+    state = %{session_id: opts.session_id}
 
-    if session_id == nil do
-      {:ok, req} |> :cowboy_req.reply(400, %{}, "Missing session_id")
-    else
-      state = %{session_id: session_id}
-
-      {:cowboy_websocket, req, state, %{idle_timeout: 60_000}}
-    end
+    {:cowboy_websocket, opts.req, state, %{idle_timeout: 60_000}}
   end
 
   @impl true

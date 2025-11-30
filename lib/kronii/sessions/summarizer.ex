@@ -77,7 +77,7 @@ defmodule Kronii.Sessions.Summarizer do
     {:error, reason}
   end
 
-  defp user_message(conversation_transcript, previous_summary \\ "N/A") do
+  defp user_message(conversation_transcript, previous_summary) do
     prompt =
       @raw_user_prompt
       |> String.replace(@transcript_placeholder, conversation_transcript)

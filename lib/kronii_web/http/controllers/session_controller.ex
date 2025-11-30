@@ -31,7 +31,6 @@ defmodule KroniiWeb.Http.SessionController do
     case Kronii.close_session(session_id) do
       :ok -> Utils.json_resp(conn, 200, %{status: "closed"})
       {:error, :not_found} -> Utils.json_resp(conn, 404, %{error: "session_not_found"})
-      {:error, reason} -> Utils.json_resp(conn, 500, %{error: to_string(reason)})
     end
   end
 
