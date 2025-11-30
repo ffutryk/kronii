@@ -16,9 +16,11 @@ defmodule Kronii.LLM.OpenRouter do
     if is_nil(pid) and stream?,
       do: raise(ArgumentError, ":pid cannot be nil when :stream? is true")
 
-    client = req_client(messages, config, stream?) |> maybe_enable_stream(stream?, pid)
-
-    do_request(client, on_success_handler(stream?))
+    messages
+    |> req_client(config, stream?)
+    |> maybe_enable_stream(stream?, pid)
+    |> Req.post()
+    |> handle_response(stream?)
     |> wrap_and_send(pid)
   end
 
@@ -51,31 +53,6 @@ defmodule Kronii.LLM.OpenRouter do
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
-  end
-
-  defp do_request(client, on_success) when is_function(on_success, 1) do
-    case Req.post(client) do
-      {:ok, %{status: 200} = res} ->
-        on_success.(res)
-
-      {:ok, %{status: status, body: body}} ->
-        {:error, {:httperror, status, body}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp on_success_handler(true), do: &on_success_stream/1
-  defp on_success_handler(false), do: &on_success_non_stream/1
-
-  defp on_success_stream(res) do
-    content =
-      Req.Response.get_private(res, :chunks, [])
-      |> Enum.reverse()
-      |> IO.iodata_to_binary()
-
-    {:done, Message.assistant(content)}
   end
 
   defp handle_stream({:data, chunk}, {req, res}, pid)
@@ -134,19 +111,24 @@ defmodule Kronii.LLM.OpenRouter do
     {:cont, {req, res}}
   end
 
-  defp on_success_non_stream(%{body: body}) do
-    case handle_response(body) do
-      {:ok, message} -> {:done, message}
-      {:error, reason} -> {:error, reason}
-    end
+  defp handle_response({:ok, %{status: 200, body: body}}, false) do
+    %{"choices" => [%{"message" => %{"content" => content}} | _]} = body
+    {:done, Message.assistant(content)}
   end
 
-  defp handle_response(%{"choices" => [%{"message" => %{"content" => content}} | _]})
-       when is_binary(content) do
-    {:ok, Message.assistant(content)}
+  defp handle_response({:ok, response} = _res, true) do
+    content =
+      response
+      |> Req.Response.get_private(:chunks, [])
+      |> Enum.reverse()
+      |> IO.iodata_to_binary()
+
+    {:done, Message.assistant(content)}
   end
 
-  defp handle_response(other), do: {:error, {:unexpected_response, other}}
+  defp handle_response({:error, reason}, _stream?) do
+    {:error, reason}
+  end
 
   defp empty_chunk?(%{content: content, tool_calls: tool_calls}),
     do: is_nil(content) and is_nil(tool_calls)
