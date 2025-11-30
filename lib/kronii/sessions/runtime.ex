@@ -180,7 +180,11 @@ defmodule Kronii.Sessions.Runtime do
 
     {:ok, task_pid} =
       Task.start_link(fn ->
-        OpenRouter.generate(messages, session.config.llm_config, server_pid, true)
+        OpenRouter.generate(messages,
+          config: session.config.llm_config,
+          pid: server_pid,
+          stream?: true
+        )
       end)
 
     put_generation_task(data, task_pid)

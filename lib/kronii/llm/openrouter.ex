@@ -4,13 +4,18 @@ defmodule Kronii.LLM.OpenRouter do
 
   @api_url "https://openrouter.ai/api/v1/chat/completions"
 
-  def generate(messages, config \\ Config.new(), pid \\ nil, stream? \\ false)
+  def generate(messages, opts \\ [])
 
-  def generate(_messages, _config, nil, true),
-    do: raise(ArgumentError, ":pid cannot be nil when :stream? is true")
+  def generate([], _opts), do: raise(ArgumentError, ":messages cannot be empty")
 
-  def generate(messages, config, pid, stream?)
-      when is_list(messages) do
+  def generate(messages, opts) when is_list(messages) do
+    config = Keyword.get(opts, :config, Config.new())
+    pid = Keyword.get(opts, :pid, nil)
+    stream? = Keyword.get(opts, :stream?, false)
+
+    if is_nil(pid) and stream?,
+      do: raise(ArgumentError, ":pid cannot be nil when :stream? is true")
+
     mapped_messages = map_messages(messages)
 
     client =
