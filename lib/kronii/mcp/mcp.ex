@@ -1,7 +1,7 @@
 defmodule Kronii.MCP do
   use Supervisor
 
-  alias Anubis.MCP. {Response, Error}
+  alias Anubis.MCP.{Response, Error}
 
   @client Kronii.MCP.Client
 
@@ -11,9 +11,9 @@ defmodule Kronii.MCP do
 
   @impl true
   def init(_args) do
-      Application.get_env(:kronii, :mcp_servers, [])
-      |> Enum.map(&server_spec/1)
-      |> Supervisor.init(strategy: :one_for_one)
+    Application.get_env(:kronii, :mcp_servers, [])
+    |> Enum.map(&server_spec/1)
+    |> Supervisor.init(strategy: :one_for_one)
   end
 
   defp server_spec(%{name: name} = server),
