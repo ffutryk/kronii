@@ -18,12 +18,8 @@ defmodule Kronii.LLM.OpenRouter do
 
     client = req_client(messages, config, stream?) |> maybe_enable_stream(stream?, pid)
 
-    result = do_request(client, on_success_handler(stream?))
-
-    case pid do
-      nil -> result
-      _ when is_pid(pid) -> send(pid, result)
-    end
+    do_request(client, on_success_handler(stream?))
+    |> wrap_and_send(pid)
   end
 
   defp req_client(messages, config, stream?) do
@@ -145,6 +141,9 @@ defmodule Kronii.LLM.OpenRouter do
     do: Req.merge(client, into: &handle_stream(&1, &2, pid))
 
   defp maybe_enable_stream(client, false, _pid), do: client
+
+  defp wrap_and_send(result, nil), do: result
+  defp wrap_and_send(result, pid) when is_pid(pid), do: send(pid, result)
 
   defp get_api_key, do: Application.fetch_env!(:kronii, :openrouter_key)
 end
