@@ -56,21 +56,16 @@ defmodule Kronii.LLM.OpenRouter do
 
   defp map_messages(messages) when is_list(messages), do: Enum.map(messages, &map_message/1)
 
-  defp map_message(%Message{role: :tool} = message) do
-    %{
-      role: "tool",
-      content: message.content,
-      tool_call_id: message.tool_call_id
-    }
-    |> maybe_put(:name, message.name)
-  end
-
   defp map_message(%Message{} = message) do
     %{
-      role: Atom.to_string(message.role),
-      content: message.content
+      "role" => message.role |> Atom.to_string(),
+      "content" => message.content,
+      "name" => message.name,
+      "tool_calls" => message.tool_calls,
+      "tool_call_id" => message.tool_call_id
     }
-    |> maybe_put(:name, message.name)
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Map.new()
   end
 
   defp get_api_key, do: Application.fetch_env!(:kronii, :openrouter_key)
