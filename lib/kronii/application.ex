@@ -11,7 +11,8 @@ defmodule Kronii.Application do
       {Registry, keys: :unique, name: Kronii.Sessions.Registry},
       {Kronii.Sessions.Supervisor, []},
       {KroniiWeb.Endpoint, []},
-      {Registry, keys: :unique, name: KroniiWeb.Sessions.Socket}
+      {Registry, keys: :unique, name: KroniiWeb.Sessions.Socket},
+      {Kronii.MCP, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
