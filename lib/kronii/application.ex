@@ -12,7 +12,7 @@ defmodule Kronii.Application do
       {Kronii.Sessions.Supervisor, []},
       {KroniiWeb.Endpoint, []},
       {Registry, keys: :unique, name: KroniiWeb.Sessions.Socket},
-      {Kronii.MCP, []}
+      Kronii.MCP.Client.child_spec()
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
