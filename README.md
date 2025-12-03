@@ -1,21 +1,5 @@
 # Kronii
 
-**TODO: Add description**
-
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `kronii` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:kronii, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/kronii>.
-
+> [!WARNING]
+> **Disclaimer:** This project is **not affiliated with, endorsed by, or connected to Cover Corp or the character “Ouro Kronii.”**  
+> The name “Kronii” is used solely as a personal project name and fan tribute.
