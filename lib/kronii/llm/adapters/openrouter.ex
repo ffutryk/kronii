@@ -14,32 +14,37 @@ defmodule Kronii.LLM.Adapters.OpenRouter do
     config = Keyword.get(opts, :config, Config.new())
     pid = Keyword.get(opts, :pid, nil)
     stream? = Keyword.get(opts, :stream?, false)
+    tools = Keyword.get(opts, :tools, [])
 
     if is_nil(pid) and stream?,
       do: raise(ArgumentError, ":pid cannot be nil when :stream? is true")
 
     messages
-    |> req_client(config, stream?)
+    |> req_client(config, stream?, tools)
     |> maybe_enable_stream(stream?, pid)
     |> Req.post()
     |> handle_response(stream?)
     |> wrap_and_send(pid)
   end
 
-  defp req_client(messages, config, stream?) do
+  defp req_client(messages, config, stream?, tools) do
     messages = map_messages(messages)
 
-    Req.new(
-      url: @api_url,
-      method: :post,
-      auth: {:bearer, get_api_key()},
-      json: %{
+    body =
+      %{
         stream: stream?,
         messages: messages,
         model: config.model,
         max_tokens: config.max_tokens || nil,
         temperature: config.temperature
       }
+      |> maybe_add_tools(tools)
+
+    Req.new(
+      url: @api_url,
+      method: :post,
+      auth: {:bearer, get_api_key()},
+      json: body
     )
   end
 
@@ -132,8 +137,27 @@ defmodule Kronii.LLM.Adapters.OpenRouter do
     {:error, reason}
   end
 
+  defp format_tool(%Kronii.MCP.Tool{} = tool) do
+    %{
+      "type" => "function",
+      "function" => %{
+        "name" => tool.name,
+        "description" => tool.description,
+        "parameters" => tool.parameters
+      }
+    }
+  end
+
   defp empty_chunk?(%{content: content, tool_calls: tool_calls}),
     do: is_nil(content) and is_nil(tool_calls)
+
+  defp maybe_add_tools(body, []), do: body
+
+  defp maybe_add_tools(body, tools) when is_list(tools) do
+    body
+    |> Map.put(:tools, Enum.map(tools, &format_tool/1))
+    |> Map.put(:tool_choice, "auto")
+  end
 
   defp maybe_enable_stream(client, true, pid),
     do: Req.merge(client, into: &handle_stream(&1, &2, pid))
