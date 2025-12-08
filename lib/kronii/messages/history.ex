@@ -63,25 +63,7 @@ defmodule Kronii.Messages.History do
         {:reply, :skipped, state}
 
       true ->
-        msgs = n_most_recent(table, context_size)
-        summary_time = System.os_time(:microsecond)
-        assistant_name = Keyword.get(opts, :assistant_name)
-        config = Keyword.get(opts, :llm_config)
-        latest_summary = state.latest_summary
-        history_pid = self()
-
-        {:ok, _task_pid} =
-          Task.start(fn ->
-            case Summarizer.summarize(msgs, assistant_name, latest_summary, config) do
-              {:ok, summary} ->
-                GenServer.cast(history_pid, {:summary_ready, summary, summary_time, caller})
-
-              {:error, reason} ->
-                send(caller, {:error, reason})
-                GenServer.cast(history_pid, :summary_failed)
-            end
-          end)
-
+        spawn_summarization_task(table, context_size, opts, caller, state)
         {:reply, :accepted, %{state | summarizing?: true}}
     end
   end
@@ -94,6 +76,28 @@ defmodule Kronii.Messages.History do
       ) do
     messages = n_most_recent(table, n)
     {:reply, {:ok, messages}, state}
+  end
+
+  defp spawn_summarization_task(table, context_size, opts, caller, state) do
+    assistant_name = Keyword.get(opts, :assistant_name)
+    config = Keyword.get(opts, :llm_config)
+    history_pid = self()
+    summary_time = System.os_time(:microsecond)
+
+    Task.start(fn ->
+      n_most_recent(table, context_size)
+      |> Summarizer.summarize(assistant_name, state.latest_summary, config)
+      |> handle_summarization_result(history_pid, summary_time, caller)
+    end)
+  end
+
+  defp handle_summarization_result({:ok, summary}, history_pid, summary_time, caller) do
+    GenServer.cast(history_pid, {:summary_ready, summary, summary_time, caller})
+  end
+
+  defp handle_summarization_result({:error, reason}, history_pid, _summary_time, caller) do
+    send(caller, {:error, reason})
+    GenServer.cast(history_pid, :summary_failed)
   end
 
   defp n_most_recent(table, n) do
