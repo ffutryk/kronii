@@ -2,7 +2,8 @@ defmodule Kronii.Sessions.Runtime do
   @behaviour :gen_statem
 
   alias Kronii.LLM.Client
-  alias Kronii.Sessions.{Session, Summarizer}
+  alias Kronii.Messages.History
+  alias Kronii.Sessions.Session
 
   # Client API
 
@@ -33,11 +34,14 @@ defmodule Kronii.Sessions.Runtime do
   def init(%{session: session}) do
     Process.flag(:trap_exit, true)
 
+    {:ok, history_pid} =
+      History.start_link(session_id: session.id)
+
     data = %{
       session: session,
+      history: history_pid,
       tasks: %{
-        generation: nil,
-        summarization: nil
+        generation: nil
       },
       gen_id: nil
     }
@@ -51,9 +55,6 @@ defmodule Kronii.Sessions.Runtime do
         notify(data, {:generation_error, data.gen_id, reason})
 
         {:next_state, :active, stop_generation_task(data)}
-
-      pid == data.tasks.summarization and reason not in [:normal, :shutdown] ->
-        {:keep_state, stop_summarization_task(data)}
 
       true ->
         :keep_state_and_data
@@ -70,12 +71,12 @@ defmodule Kronii.Sessions.Runtime do
 
   @impl :gen_statem
   def handle_event(:cast, {:generate, message}, state, data) when state in [:active, :idle] do
-    new_session = Session.add_message(data.session, message)
+    History.add(data.history, message)
+
     gen_id = new_gen_id()
 
     data =
       data
-      |> put_session(new_session)
       |> put_gen_id(gen_id)
       |> start_generation_task()
 
@@ -96,15 +97,16 @@ defmodule Kronii.Sessions.Runtime do
 
   @impl :gen_statem
   def handle_event(:info, {:done, message}, :streaming, data) do
-    new_session = Session.add_message(data.session, message)
+    History.add(data.history, message)
+
     gen_id = data.gen_id
 
     data =
       data
-      |> put_session(new_session)
       |> stop_generation_task()
       |> clear_gen_id()
-      |> maybe_summarize()
+
+    maybe_summarize(data)
 
     notify(data, {:generation_complete, gen_id})
 
@@ -128,22 +130,12 @@ defmodule Kronii.Sessions.Runtime do
   end
 
   @impl :gen_statem
-  def handle_event(:info, {:summarization_done, summary, timestamp}, _state, data) do
-    new_session = Session.apply_summary(data.session, summary, timestamp)
+  def handle_event(:info, {:summarized, summary}, _state, data) do
+    new_session = Session.apply_summary(data.session, summary)
 
     data =
       data
       |> put_session(new_session)
-      |> stop_summarization_task()
-
-    {:keep_state, data}
-  end
-
-  @impl :gen_statem
-  def handle_event(:info, {:summarization_error, _reason}, _state, data) do
-    data =
-      data
-      |> stop_summarization_task()
 
     {:keep_state, data}
   end
@@ -160,7 +152,6 @@ defmodule Kronii.Sessions.Runtime do
   @impl :gen_statem
   def handle_event({:call, from}, :close, _state, data) do
     if is_pid(data.tasks.generation), do: Process.exit(data.tasks.generation, :shutdown)
-    if is_pid(data.tasks.summarization), do: Process.exit(data.tasks.summarization, :shutdown)
 
     :gen_statem.reply(from, :ok)
     {:stop, :normal}
@@ -175,7 +166,7 @@ defmodule Kronii.Sessions.Runtime do
   defp start_generation_task(data) do
     server_pid = self()
     session = data.session
-    messages = Enum.reverse(session.message_history)
+    {:ok, messages} = History.most_recent(data.history, session.config.context_window)
 
     {:ok, task_pid} =
       Task.start_link(fn ->
@@ -190,31 +181,10 @@ defmodule Kronii.Sessions.Runtime do
   end
 
   defp maybe_summarize(data) do
-    cond do
-      Session.needs_summarization?(data.session) and is_nil(data.tasks.summarization) ->
-        start_summarization_task(data)
-
-      true ->
-        data
-    end
-  end
-
-  defp start_summarization_task(data) do
-    server_pid = self()
-    session = data.session
-
-    {:ok, task_pid} =
-      Task.start_link(fn ->
-        Summarizer.summarize(
-          Enum.reverse(session.message_history),
-          session.config.assistant_name,
-          session.summary,
-          server_pid,
-          session.config.llm_config
-        )
-      end)
-
-    put_summarization_task(data, task_pid)
+    History.maybe_summarize(data.history, data.session.config.context_window,
+      assistant_name: data.session.config.assistant_name,
+      llm_config: data.session.config.llm_config
+    )
   end
 
   defp notify(%{session: session}, msg), do: Kronii.notify_client(session.id, event_to_map(msg))
@@ -238,10 +208,6 @@ defmodule Kronii.Sessions.Runtime do
   defp event_to_map({:generation_error, gen_id, reason}) do
     %{type: "generation_error", gen_id: gen_id, reason: reason}
   end
-
-  defp stop_summarization_task(data), do: put_task(data, :summarization, nil)
-
-  defp put_summarization_task(data, task_pid), do: put_task(data, :summarization, task_pid)
 
   defp stop_generation_task(data), do: put_task(data, :generation, nil)
 

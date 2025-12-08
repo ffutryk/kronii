@@ -1,7 +1,6 @@
-defmodule Kronii.Sessions.Summarizer do
+defmodule Kronii.Messages.Summarizer do
   alias Kronii.Messages.{UserMessage, AssistantMessage, MessageFactory}
-  alias Kronii.LLM.Client
-  alias Kronii.LLM.Config
+  alias Kronii.LLM.{Client, Config}
 
   @max_tokens 550
   @previous_summary_placeholder "<PREVIOUS_SUMMARY>"
@@ -32,8 +31,7 @@ defmodule Kronii.Sessions.Summarizer do
   def summarize(
         message_history,
         assistant_name,
-        previous_summary \\ "N/A",
-        pid \\ nil,
+        previous_summary,
         config \\ nil
       ) do
     message =
@@ -51,29 +49,10 @@ defmodule Kronii.Sessions.Summarizer do
 
     messages = [system_message(config.max_tokens), message]
 
-    last_message = List.last(message_history)
-
-    result = Client.generate(messages, config: config)
-    handle_generation_result(result, pid, last_message.timestamp)
-  end
-
-  defp handle_generation_result({:done, %AssistantMessage{content: content}}, nil, timestamp) do
-    {:ok, content, timestamp}
-  end
-
-  defp handle_generation_result({:done, %AssistantMessage{content: content}}, pid, timestamp)
-       when is_pid(pid) do
-    send(pid, {:summarization_done, content, timestamp})
-    {:ok, content}
-  end
-
-  defp handle_generation_result({:error, reason}, nil, _) do
-    {:error, reason}
-  end
-
-  defp handle_generation_result({:error, reason}, pid, _) when is_pid(pid) do
-    send(pid, {:summarization_error, reason})
-    {:error, reason}
+    case Client.generate(messages, config: config) do
+      {:done, %AssistantMessage{content: content}} -> {:ok, content}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp user_message(conversation_transcript, previous_summary) do

@@ -1,23 +1,16 @@
 defmodule Kronii.Sessions.Session do
-  alias Kronii.Messages
-  alias Messages.{UserMessage, AssistantMessage}
   alias Kronii.Sessions.Config
-  alias Kronii.Messages
 
   defstruct [
     :id,
     :source,
     :config,
-    message_history: [],
-    message_count: 0,
     summary: "N/A"
   ]
 
   @type t :: %__MODULE__{
           id: String.t(),
           source: String.t(),
-          message_history: [Messages.t()],
-          message_count: non_neg_integer(),
           summary: String.t() | nil,
           config: Config.t()
         }
@@ -35,33 +28,16 @@ defmodule Kronii.Sessions.Session do
     session
   end
 
-  @spec add_message(t(), Messages.t()) :: t()
-  def add_message(%__MODULE__{} = session, message),
-    do: %__MODULE__{
-      session
-      | message_history: [message | session.message_history],
-        message_count: session.message_count + 1
-    }
-
-  @spec needs_summarization?(t()) :: boolean()
-  def needs_summarization?(%__MODULE__{} = session),
-    do: session.message_count >= session.config.context_window
-
   @spec patch_config(t(), keyword() | map()) :: t()
   def patch_config(%__MODULE__{} = session, updates) do
     %__MODULE__{session | config: Config.patch(session.config, updates)}
   end
 
-  @spec apply_summary(t(), String.t(), DateTime.t()) :: t()
-  def apply_summary(%__MODULE__{} = session, summary, %DateTime{} = timestamp) do
-    filtered_history =
-      Enum.take_while(session.message_history, &DateTime.after?(&1.timestamp, timestamp))
-
+  @spec apply_summary(t(), String.t()) :: t()
+  def apply_summary(%__MODULE__{} = session, summary) do
     updated_session = %__MODULE__{
       session
-      | message_history: filtered_history,
-        message_count: length(filtered_history),
-        summary: summary
+      | summary: summary
     }
 
     validate_session(updated_session)
@@ -81,22 +57,6 @@ defmodule Kronii.Sessions.Session do
   defp validate_field({:source, value})
        when not is_binary(value),
        do: raise(ArgumentError, ":source must be a string")
-
-  defp validate_field({:message_history, value})
-       when not is_list(value),
-       do: raise(ArgumentError, ":message_history must be a list")
-
-  defp validate_field({:message_history, value})
-       when is_list(value),
-       do:
-         unless(
-           Enum.all?(value, &(match?(%AssistantMessage{}, &1) || match?(%UserMessage{}, &1))),
-           do: raise(ArgumentError, ":message_history must be a list of Message structs")
-         )
-
-  defp validate_field({:message_count, value})
-       when not is_integer(value) or value < 0,
-       do: raise(ArgumentError, ":message_count must be a non-negative integer")
 
   defp validate_field({:summary, value})
        when not is_binary(value) and not is_nil(value),
