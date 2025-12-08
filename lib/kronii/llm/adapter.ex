@@ -1,8 +1,8 @@
 defmodule Kronii.LLM.Adapter do
-  alias Kronii.Messages.Message
+  alias Kronii.Messages
   alias Kronii.MCP.Tool
 
-  @type message :: %Message{}
+  @type message :: list(Messages.t())
   @type options :: [
           config: Kronii.LLM.Config.t(),
           pid: pid() | nil,

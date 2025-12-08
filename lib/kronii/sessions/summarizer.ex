@@ -1,10 +1,9 @@
 defmodule Kronii.Sessions.Summarizer do
-  alias Kronii.Messages.Message
+  alias Kronii.Messages.{UserMessage, AssistantMessage, MessageFactory}
   alias Kronii.LLM.Client
   alias Kronii.LLM.Config
 
   @max_tokens 550
-  @default_user_name "User"
   @previous_summary_placeholder "<PREVIOUS_SUMMARY>"
   @transcript_placeholder "<TRANSCRIPT>"
   @max_tokens_placeholder "<MAX_TOKENS>"
@@ -58,11 +57,11 @@ defmodule Kronii.Sessions.Summarizer do
     handle_generation_result(result, pid, last_message.timestamp)
   end
 
-  defp handle_generation_result({:done, %Message{content: content}}, nil, timestamp) do
+  defp handle_generation_result({:done, %AssistantMessage{content: content}}, nil, timestamp) do
     {:ok, content, timestamp}
   end
 
-  defp handle_generation_result({:done, %Message{content: content}}, pid, timestamp)
+  defp handle_generation_result({:done, %AssistantMessage{content: content}}, pid, timestamp)
        when is_pid(pid) do
     send(pid, {:summarization_done, content, timestamp})
     {:ok, content}
@@ -83,7 +82,7 @@ defmodule Kronii.Sessions.Summarizer do
       |> String.replace(@transcript_placeholder, conversation_transcript)
       |> String.replace(@previous_summary_placeholder, previous_summary)
 
-    Message.user(prompt)
+    MessageFactory.user("user", prompt)
   end
 
   defp conversation_transcript(conversation, assistant_name) when is_list(conversation) do
@@ -92,13 +91,10 @@ defmodule Kronii.Sessions.Summarizer do
     |> IO.iodata_to_binary()
   end
 
-  defp format_message(%Message{role: :assistant, content: content}, assistant_name),
+  defp format_message(%AssistantMessage{content: content}, assistant_name),
     do: segment(assistant_name, content)
 
-  defp format_message(%Message{role: :user, name: nil, content: content}, _),
-    do: segment(@default_user_name, content)
-
-  defp format_message(%Message{role: :user, name: name, content: content}, _),
+  defp format_message(%UserMessage{name: name, content: content}, _),
     do: segment(name, content)
 
   defp segment(name, content), do: [name, ": ", content, "\n"]
@@ -107,6 +103,6 @@ defmodule Kronii.Sessions.Summarizer do
     prompt =
       String.replace(@raw_system_prompt, @max_tokens_placeholder, Integer.to_string(max_tokens))
 
-    Message.system(prompt)
+    MessageFactory.system(prompt)
   end
 end

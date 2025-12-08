@@ -1,7 +1,7 @@
 defmodule Kronii do
   alias Kronii.Sessions.Supervisor
   alias Kronii.Sessions.Runtime
-  alias Kronii.Messages.Message
+  alias Kronii.Messages.MessageFactory
 
   def create_session(source, initial_config_updates \\ %{}) do
     Kronii.Sessions.Supervisor.start_session(source, initial_config_updates)
@@ -11,7 +11,7 @@ defmodule Kronii do
 
   def request_generation(session_id, username, content) do
     with_session(session_id, fn pid ->
-      msg = Message.user(username, content)
+      msg = MessageFactory.user(username, content)
       Runtime.generate(pid, msg)
       :ok
     end)

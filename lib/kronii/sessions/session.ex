@@ -1,6 +1,8 @@
 defmodule Kronii.Sessions.Session do
+  alias Kronii.Messages
+  alias Messages.{UserMessage, AssistantMessage}
   alias Kronii.Sessions.Config
-  alias Kronii.Messages.Message
+  alias Kronii.Messages
 
   defstruct [
     :id,
@@ -14,7 +16,7 @@ defmodule Kronii.Sessions.Session do
   @type t :: %__MODULE__{
           id: String.t(),
           source: String.t(),
-          message_history: [Message.t()],
+          message_history: [Messages.t()],
           message_count: non_neg_integer(),
           summary: String.t() | nil,
           config: Config.t()
@@ -33,8 +35,8 @@ defmodule Kronii.Sessions.Session do
     session
   end
 
-  @spec add_message(t(), Message.t()) :: t()
-  def add_message(%__MODULE__{} = session, %Message{} = message),
+  @spec add_message(t(), Messages.t()) :: t()
+  def add_message(%__MODULE__{} = session, message),
     do: %__MODULE__{
       session
       | message_history: [message | session.message_history],
@@ -87,7 +89,8 @@ defmodule Kronii.Sessions.Session do
   defp validate_field({:message_history, value})
        when is_list(value),
        do:
-         unless(Enum.all?(value, &match?(%Message{}, &1)),
+         unless(
+           Enum.all?(value, &(match?(%AssistantMessage{}, &1) || match?(%UserMessage{}, &1))),
            do: raise(ArgumentError, ":message_history must be a list of Message structs")
          )
 

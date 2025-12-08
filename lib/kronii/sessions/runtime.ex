@@ -3,7 +3,6 @@ defmodule Kronii.Sessions.Runtime do
 
   alias Kronii.LLM.Client
   alias Kronii.Sessions.{Session, Summarizer}
-  alias Kronii.Messages.Message
 
   # Client API
 
@@ -19,7 +18,7 @@ defmodule Kronii.Sessions.Runtime do
   def cancel_generation(server), do: :gen_statem.call(server, :cancel)
   def close(server), do: :gen_statem.call(server, :close)
 
-  def generate(server, %Message{} = message),
+  def generate(server, message),
     do: :gen_statem.cast(server, {:generate, message})
 
   def patch_config(server, updates) when is_list(updates) or is_map(updates),

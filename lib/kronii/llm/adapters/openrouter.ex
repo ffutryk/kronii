@@ -2,7 +2,7 @@ defmodule Kronii.LLM.Adapters.OpenRouter do
   @behaviour Kronii.LLM.Adapter
 
   alias Kronii.LLM.Config
-  alias Kronii.Messages.Message
+  alias Kronii.Messages.MessageFactory
 
   @api_url "https://openrouter.ai/api/v1/chat/completions"
 
@@ -50,13 +50,27 @@ defmodule Kronii.LLM.Adapters.OpenRouter do
 
   defp map_messages(messages) when is_list(messages), do: Enum.map(messages, &map_message/1)
 
-  defp map_message(%Message{} = message) do
+  defp map_message(%Kronii.Messages.SystemMessage{} = message) do
     %{
-      "role" => message.role |> Atom.to_string(),
+      "role" => Atom.to_string(message.role),
+      "content" => message.content
+    }
+  end
+
+  defp map_message(%Kronii.Messages.UserMessage{} = message) do
+    %{
+      "role" => Atom.to_string(message.role),
+      "content" => message.content,
+      "name" => message.name
+    }
+  end
+
+  defp map_message(%Kronii.Messages.AssistantMessage{} = message) do
+    %{
+      "role" => Atom.to_string(message.role),
       "content" => message.content,
       "name" => message.name,
-      "tool_calls" => message.tool_calls,
-      "tool_call_id" => message.tool_call_id
+      "tool_calls" => message.tool_calls
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
@@ -120,7 +134,7 @@ defmodule Kronii.LLM.Adapters.OpenRouter do
 
   defp handle_response({:ok, %{status: 200, body: body}}, false) do
     %{"choices" => [%{"message" => %{"content" => content}} | _]} = body
-    {:done, Message.assistant(content)}
+    {:done, MessageFactory.assistant(content)}
   end
 
   defp handle_response({:ok, response} = _res, true) do
@@ -130,7 +144,7 @@ defmodule Kronii.LLM.Adapters.OpenRouter do
       |> Enum.reverse()
       |> IO.iodata_to_binary()
 
-    {:done, Message.assistant(content)}
+    {:done, MessageFactory.assistant(content)}
   end
 
   defp handle_response({:error, reason}, _stream?) do
